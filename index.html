@@ -4,16 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notebase</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h2>Clique para adicionar e salvar seu conteudo!</h2>
+    <h2 id="frase" class="frase">Clique para adicionar e salvar seu conteúdo!</h2>
 
-    <button type="button" id="adicionar" class="adicinar">+</button>
+    <button type="button" id="adicionar" class="bntAdc">+</button>
 
-    <ul id="checklist"></ul>
-    <ul id="img"></ul>
-    <ul id="texto"></ul>
+    <!-- Formulário oculto -->
+    <div id="formulario" class="formulario">
+        <label for="tipo">Escolha o tipo:</label>
+        <select id="tipo">
+            <option value="checklist">Checklist</option>
+            <option value="imagem">Imagem</option>
+            <option value="texto">Texto</option>
+        </select>
 
-    <script src='listas.js'></script>
+        <input type="text" id="texto-input" placeholder="Digite algo..." required>
+
+        <input type="file" id="input-imagem" accept="image/*" style="display: none;">
+        <input type="text" id="input-legenda" placeholder="Digite uma legenda..." style="display: none;">
+
+        <button id="salvar">Salvar</button>
+    </div>
+
+    <!-- Contêiner das listas -->
+    <div class="listas-container">
+        <div>
+            <h3>Checklist</h3>
+            <ul id="checklist"></ul>
+        </div>
+        <div>
+            <h3>Imagens</h3>
+            <ul id="img"></ul>
+        </div>
+        <div>
+            <h3>Textos</h3>
+            <ul id="texto"></ul>
+        </div>
+    </div>
+
+    <script src="listas.js"></script>
 </body>
 </html>
