@@ -1,0 +1,8 @@
+{
+  "name": "lotebase",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "react-dropzone": "^14.3.8"
+  }
+}
