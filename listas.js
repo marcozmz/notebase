@@ -1,212 +1,239 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const btnAdicionar = document.getElementById("adicionar");
-    const formulario = document.getElementById("formulario");
-    const selectTipo = document.getElementById("tipo");
-    const inputTexto = document.getElementById("texto-input");
-    const inputImagem = document.getElementById("input-imagem");
-    const inputLegenda = document.getElementById("input-legenda");
-    const btnSalvar = document.getElementById("salvar");
+  const btnAdicionar = document.getElementById("adicionar");
+  const formulario = document.getElementById("formulario");
+  const selectTipo = document.getElementById("tipo");
+  const inputTexto = document.getElementById("texto-input");
+  const inputImagem = document.getElementById("input-imagem");
+  const inputLegenda = document.getElementById("input-legenda");
+  const btnSalvar = document.getElementById("salvar");
 
-    const checklist = document.getElementById("checklist");
-    const listaImagens = document.getElementById("img");
-    const listaTextos = document.getElementById("texto");
+  const checklist = document.getElementById("checklist");
+  const listaImagens = document.getElementById("img");
+  const listaTextos = document.getElementById("texto");
 
-    let db;
+  let db;
 
-    const request = indexedDB.open("Notebase", 1);
+  const request = indexedDB.open("Notebase", 1);
 
-    request.onupgradeneeded = (event) => {
-        let db = event.target.result;
-        if (!db.objectStoreNames.contains("checklist")) {
-            db.createObjectStore("checklist", { keyPath: "id", autoIncrement: true });
-        }
-        if (!db.objectStoreNames.contains("imagens")) {
-            db.createObjectStore("imagens", { keyPath: "id", autoIncrement: true });
-        }
-        if (!db.objectStoreNames.contains("textos")) {
-            db.createObjectStore("textos", { keyPath: "id", autoIncrement: true });
-        }
+  request.onupgradeneeded = (event) => {
+    let db = event.target.result;
+    if (!db.objectStoreNames.contains("checklist")) {
+      db.createObjectStore("checklist", { keyPath: "id", autoIncrement: true });
+    }
+    if (!db.objectStoreNames.contains("imagens")) {
+      db.createObjectStore("imagens", { keyPath: "id", autoIncrement: true });
+    }
+    if (!db.objectStoreNames.contains("textos")) {
+      db.createObjectStore("textos", { keyPath: "id", autoIncrement: true });
+    }
+  };
+
+  request.onsuccess = (event) => {
+    db = event.target.result;
+    carregarListas();
+  };
+
+  btnAdicionar.addEventListener("click", () => {
+    formulario.style.display =
+      formulario.style.display === "none" ? "block" : "none";
+  });
+
+  inputTexto.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      btnSalvar.click();
+    }
+  });
+
+  selectTipo.addEventListener("change", () => {
+    const tipo = selectTipo.value;
+    inputTexto.style.display = tipo === "imagem" ? "none" : "block";
+    inputImagem.style.display = tipo === "imagem" ? "block" : "none";
+    inputLegenda.style.display = tipo === "imagem" ? "block" : "none";
+  });
+
+  btnSalvar.addEventListener("click", () => {
+    const tipo = selectTipo.value;
+
+    if (tipo === "checklist") {
+      adicionarItemChecklist(inputTexto.value);
+    } else if (tipo === "imagem") {
+      adicionarImagem(inputImagem.files[0], inputLegenda.value);
+    } else if (tipo === "texto") {
+      adicionarTexto(inputTexto.value);
+    }
+  });
+
+  function adicionarItemChecklist(texto) {
+    if (!texto.trim()) return;
+
+    const transaction = db.transaction(["checklist"], "readwrite");
+    const store = transaction.objectStore("checklist");
+    store.add({ texto, concluido: false });
+
+    transaction.oncomplete = () => {
+      inputTexto.value = "";
+      formulario.style.display = "none";
+      carregarListas();
     };
+  }
 
-    request.onsuccess = (event) => {
-        db = event.target.result;
+  function adicionarImagem(arquivo, legenda) {
+    if (!arquivo) return;
+
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      const imageData = event.target.result;
+      const transaction = db.transaction(["imagens"], "readwrite");
+      const store = transaction.objectStore("imagens");
+      store.add({ imageData, legenda });
+
+      transaction.oncomplete = () => {
+        inputImagem.value = "";
+        inputLegenda.value = "";
+        formulario.style.display = "none";
         carregarListas();
+      };
     };
+    reader.readAsDataURL(arquivo);
+  }
 
-    btnAdicionar.addEventListener("click", () => {
-        formulario.style.display = formulario.style.display === "none" ? "block" : "none";
-    });
+  function adicionarTexto(texto) {
+    if (!texto.trim()) return;
 
-    selectTipo.addEventListener("change", () => {
-        if (selectTipo.value === "imagem") {
-            inputImagem.style.display = "block";
-            inputLegenda.style.display = "block";
-            inputTexto.style.display = "none";
-        } else {
-            inputImagem.style.display = "none";
-            inputLegenda.style.display = "none";
-            inputTexto.style.display = "block";
-        }
-    });
+    const transaction = db.transaction(["textos"], "readwrite");
+    const store = transaction.objectStore("textos");
+    store.add({ texto });
 
-    btnSalvar.addEventListener("click", () => {
-        const tipo = selectTipo.value;
+    transaction.oncomplete = () => {
+      inputTexto.value = "";
+      formulario.style.display = "none";
+      carregarListas();
+    };
+  }
 
-        if (tipo === "checklist") {
-            adicionarItemChecklist(inputTexto.value);
-        } else if (tipo === "imagem") {
-            adicionarImagem(inputImagem.files[0], inputLegenda.value);
-        } else if (tipo === "texto") {
-            adicionarTexto(inputTexto.value);
-        }
-    });
+  function carregarListas() {
+    carregarChecklist();
+    carregarImagens();
+    carregarTextos();
+  }
 
-    function adicionarItemChecklist(texto) {
-        if (!texto.trim()) return;
+  function carregarChecklist() {
+    checklist.innerHTML = "";
+    const transaction = db.transaction(["checklist"], "readonly");
+    const store = transaction.objectStore("checklist");
+    const request = store.getAll();
 
-        const transaction = db.transaction(["checklist"], "readwrite");
-        const store = transaction.objectStore("checklist");
-        store.add({ texto, concluido: false });
+    request.onsuccess = () => {
+      request.result.forEach((item) => {
+        const li = document.createElement("li");
 
-        transaction.oncomplete = () => {
-            inputTexto.value = "";
-            formulario.style.display = "none";
-            carregarListas();
-        };
-    }
+        const textoSpan = document.createElement("span");
+        textoSpan.textContent = item.texto;
 
-    function adicionarImagem(arquivo, legenda) {
-        if (!arquivo) return;
+        const botoesDiv = document.createElement("div");
+        botoesDiv.classList.add("botoes");
 
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            const imageData = event.target.result;
-            const transaction = db.transaction(["imagens"], "readwrite");
-            const store = transaction.objectStore("imagens");
-            store.add({ imageData, legenda });
+        const concluirBtn = document.createElement("button");
+        concluirBtn.classList.add("btn");
+        concluirBtn.textContent = item.concluido ? "Desmarcar" : "Concluir";
+        concluirBtn.onclick = () => toggleConcluido(item.id);
 
-            transaction.oncomplete = () => {
-                inputImagem.value = "";
-                inputLegenda.value = "";
-                formulario.style.display = "none";
-                carregarListas();
-            };
-        };
-        reader.readAsDataURL(arquivo);
-    }
+        const excluirBtn = document.createElement("button");
+        excluirBtn.classList.add("btn");
+        excluirBtn.textContent = "Excluir";
+        excluirBtn.onclick = () => excluirItem("checklist", item.id);
 
-    function adicionarTexto(texto) {
-        if (!texto.trim()) return;
+        botoesDiv.appendChild(concluirBtn);
+        botoesDiv.appendChild(excluirBtn);
 
-        const transaction = db.transaction(["textos"], "readwrite");
-        const store = transaction.objectStore("textos");
-        store.add({ texto });
+        li.appendChild(textoSpan);
+        li.appendChild(botoesDiv);
+        checklist.appendChild(li);
+      });
+    };
+  }
 
-        transaction.oncomplete = () => {
-            inputTexto.value = "";
-            formulario.style.display = "none";
-            carregarListas();
-        };
-    }
+  function carregarImagens() {
+    listaImagens.innerHTML = "";
+    const transaction = db.transaction(["imagens"], "readonly");
+    const store = transaction.objectStore("imagens");
+    const request = store.getAll();
 
-    function carregarListas() {
-        carregarChecklist();
-        carregarImagens();
-        carregarTextos();
-    }
+    request.onsuccess = () => {
+      request.result.forEach((item) => {
+        const li = document.createElement("li");
 
-    function carregarChecklist() {
-        checklist.innerHTML = "";
-        const transaction = db.transaction(["checklist"], "readonly");
-        const store = transaction.objectStore("checklist");
-        const request = store.getAll();
+        const img = document.createElement("img");
+        img.src = item.imageData;
+        img.style.maxWidth = "200px";
 
-        request.onsuccess = () => {
-            request.result.forEach((item) => {
-                const li = document.createElement("li");
-                li.textContent = item.texto;
+        const legenda = document.createElement("p");
+        legenda.textContent = item.legenda;
 
-                // Botões de ação
-                const concluirBtn = document.createElement("button");
-                concluirBtn.classList.add("btn");
-                concluirBtn.textContent = item.concluido ? "Desmarcar" : "Concluir";
-                concluirBtn.onclick = () => {
-                    toggleConcluido(item.id);
-                };
+        const botoes = document.createElement("div");
+        botoes.classList.add("botoes");
 
-                const excluirBtn = document.createElement("button");
-                excluirBtn.classList.add("btn");
-                excluirBtn.textContent = "Excluir";
-                excluirBtn.onclick = () => {
-                    excluirItem(item.id);
-                };
+        const btnExcluir = document.createElement("button");
+        btnExcluir.textContent = "Excluir";
+        btnExcluir.classList.add("btn");
+        btnExcluir.onclick = () => excluirItem("imagens", item.id);
 
-                li.appendChild(concluirBtn);
-                li.appendChild(excluirBtn);
-                checklist.appendChild(li);
-            });
-        };
-    }
+        botoes.appendChild(btnExcluir);
+        li.append(img, legenda, botoes);
+        listaImagens.appendChild(li);
+      });
+    };
+  }
 
-    function carregarImagens() {
-        listaImagens.innerHTML = "";
-        const transaction = db.transaction(["imagens"], "readonly");
-        const store = transaction.objectStore("imagens");
-        const request = store.getAll();
+  function carregarTextos() {
+    listaTextos.innerHTML = "";
+    const transaction = db.transaction(["textos"], "readonly");
+    const store = transaction.objectStore("textos");
+    const request = store.getAll();
 
-        request.onsuccess = () => {
-            request.result.forEach((item) => {
-                const li = document.createElement("li");
+    request.onsuccess = () => {
+      request.result.forEach((item) => {
+        const li = document.createElement("li");
 
-                const img = document.createElement("img");
-                img.src = item.imageData;
-                img.style.maxWidth = "200px";
+        const paragrafo = document.createElement("p");
+        paragrafo.textContent = item.texto;
 
-                const legenda = document.createElement("p");
-                legenda.textContent = item.legenda;
+        const botoes = document.createElement("div");
+        botoes.classList.add("botoes");
 
-                li.appendChild(img);
-                li.appendChild(legenda);
-                listaImagens.appendChild(li);
-            });
-        };
-    }
+        const btnExcluir = document.createElement("button");
+        btnExcluir.textContent = "Excluir";
+        btnExcluir.classList.add("btn");
+        btnExcluir.onclick = () => excluirItem("textos", item.id);
 
-    function carregarTextos() {
-        listaTextos.innerHTML = "";
-        const transaction = db.transaction(["textos"], "readonly");
-        const store = transaction.objectStore("textos");
-        const request = store.getAll();
+        botoes.appendChild(btnExcluir);
+        li.append(paragrafo, botoes);
+        listaTextos.appendChild(li);
+      });
+    };
+  }
 
-        request.onsuccess = () => {
-            request.result.forEach((item) => {
-                const li = document.createElement("li");
-                li.textContent = item.texto;
-                listaTextos.appendChild(li);
-            });
-        };
-    }
+  function toggleConcluido(id) {
+    const transaction = db.transaction(["checklist"], "readwrite");
+    const store = transaction.objectStore("checklist");
+    const request = store.get(id);
 
-    function toggleConcluido(id) {
-        const transaction = db.transaction(["checklist"], "readwrite");
-        const store = transaction.objectStore("checklist");
-        const request = store.get(id);
+    request.onsuccess = () => {
+      const item = request.result;
+      item.concluido = !item.concluido;
+      store.put(item);
+      carregarListas();
+    };
+  }
 
-        request.onsuccess = () => {
-            const item = request.result;
-            item.concluido = !item.concluido;
-            store.put(item);
-            carregarListas();
-        };
-    }
+  function excluirItem(storeName, id) {
+    const transaction = db.transaction([storeName], "readwrite");
+    const store = transaction.objectStore(storeName);
+    store.delete(id);
 
-    function excluirItem(id) {
-        const transaction = db.transaction(["checklist"], "readwrite");
-        const store = transaction.objectStore("checklist");
-        store.delete(id);
-
-        transaction.oncomplete = () => {
-            carregarListas();
-        };
-    }
+    transaction.oncomplete = () => {
+      carregarListas();
+    };
+  }
 });
